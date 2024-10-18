@@ -8,7 +8,7 @@ module Servant.Auth.Server.Internal where
 
 import           Control.Monad.Except (runExceptT, join)
 import           Control.Monad.Trans (liftIO)
-import           Data.Kind           (Type)
+import           Data.Kind           (Type, Constraint)
 import           Data.Typeable       (Typeable, typeRep)
 import           Network.Wai         (Request, queryString)
 import           Servant
@@ -21,7 +21,6 @@ import Servant.Auth.Server.Internal.AddSetCookie
 import Servant.Auth.Server.Internal.Class
 import Servant.Auth.Server.Internal.Cookie
 import Servant.Auth.Server.Internal.ConfigTypes
--- import Servant.Auth.Server.Internal.JWT
 import Servant.Auth.Server.Internal.Types
 
 import Servant.Server.Experimental.Auth (AuthHandler (..))
@@ -30,7 +29,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.Text.Lazy as TL
 import Data.ByteString.Lazy (ByteString)
-import GHC.TypeLits (KnownSymbol, symbolVal)
+import GHC.TypeLits (KnownSymbol, symbolVal, TypeError, ErrorMessage(..))
 import Network.HTTP.Types (queryToQueryText)
 import Data.String (fromString)
 
@@ -101,12 +100,18 @@ data NewAuth (mods :: [Type]) (auths :: [Type]) (a :: Type)
 
 type NewAuthResult a = Maybe (Either Text a)
 
+type family IsNonEmptyAuths (auths :: [Type]) :: Constraint where
+    IsNonEmptyAuths '[] =
+        TypeError ('Text "NewAuth must be given a non-empty list of authentication methods")
+    IsNonEmptyAuths (auth ': auths) = ()
+
 instance
     ( HasServer api ctxs
     , HasContextEntry (MkContextWithErrorFormatter ctxs) ErrorFormatters
     , SBoolI (FoldRequired mods)
     , SBoolI (FoldLenient mods)
     , AllAuth auths a
+    , IsNonEmptyAuths auths
     , HasContextEntry ctxs (AuthHandler Request (NewAuthResult a))
     ) => HasServer (NewAuth mods auths a :> api) ctxs where
     type ServerT (NewAuth mods auths a :> api) m =
