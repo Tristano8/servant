@@ -6,7 +6,8 @@
 
 module Servant.Auth.Server.Internal where
 
-import           Control.Monad.Except (runExceptT, join)
+import           Control.Monad       (join)
+import           Control.Monad.Except (runExceptT)
 import           Control.Monad.Trans (liftIO)
 import           Data.Kind           (Type, Constraint)
 import           Data.Typeable       (Typeable, typeRep)
